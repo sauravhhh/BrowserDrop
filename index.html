@@ -2,54 +2,372 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BrowserDrop</title>
-    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            overscroll-behavior-y: contain;
+        }
+        /* Custom animation for peer discovery */
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 0.7; }
+            50% { transform: scale(1.05); opacity: 1; }
+        }
+        .peer-pulse {
+            animation: pulse 2s infinite ease-in-out;
+        }
+        /* Custom scrollbar for better aesthetics */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px;}
+        ::-webkit-scrollbar-thumb { background: #888; border-radius: 10px;}
+        ::-webkit-scrollbar-thumb:hover { background: #555; }
+
+        /* Styles for send/receive modes */
+        .mode-receive #peers-container, .mode-receive #peers-title {
+            display: none;
+        }
+        .mode-send #user-info-container {
+            text-align: left;
+            padding: 1rem;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(243, 244, 246, 0.8); /* bg-gray-100 with opacity */
+            backdrop-filter: blur(8px);
+            border-bottom: 1px solid #e5e7eb; /* gray-200 */
+        }
+        .dark .mode-send #user-info-container {
+            background: rgba(17, 24, 39, 0.8); /* dark:bg-gray-900 with opacity */
+            border-bottom: 1px solid #374151; /* dark:gray-700 */
+        }
+        .mode-send #user-icon {
+            width: 2.5rem; /* 40px */
+            height: 2.5rem; /* 40px */
+            font-size: 1.25rem; /* 20px */
+        }
+        .mode-send #user-name {
+            font-size: 1rem; /* 16px */
+        }
+        .mode-send #peers-container {
+            margin-top: 80px; /* Adjust based on header height */
+        }
+    </style>
 </head>
-<body>
-    <div class="app-container">
-        <header class="app-header">
-            <h1>BrowserDrop</h1>
-            <p>Tap a device to share files.</p>
-        </header>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 flex flex-col items-center justify-center min-h-screen p-4 antialiased overflow-hidden">
 
-        <main class="discovery-zone">
-            <div id="self-device" class="device-icon self" style="display: none;">
-                <div class="icon-bg"></div>
-                <span id="self-name" class="device-name">This Device</span>
-            </div>
-            <div id="peer-list">
-                <!-- Discovered peers will be injected here by JavaScript -->
-            </div>
-        </main>
+    <div id="app-wrapper" class="w-full max-w-md mx-auto text-center">
 
-        <input type="file" id="file-input" multiple hidden>
+        <div id="permissions-screen">
+            <div class="w-24 h-24 rounded-full bg-blue-500 text-white flex items-center justify-center text-5xl mx-auto mb-6 shadow-lg">🌐</div>
+            <h1 class="text-2xl font-bold mb-2">Welcome to BrowserDrop</h1>
+            <p class="text-gray-500 dark:text-gray-400 mb-6">To discover nearby devices, BrowserDrop needs your permission to access your location. This is used solely to improve local network discovery and is not stored or shared.</p>
+            <button id="permission-button" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-xl transition-transform transform active:scale-95">Continue</button>
+        </div>
 
-        <div id="incoming-prompt" class="modal-overlay hidden">
-            <div class="modal-content">
-                <div class="sender-icon"></div>
-                <h2 id="sender-name">Indigo Fox</h2>
-                <p id="file-info">wants to send you 3 files (15.7 MB)</p>
-                <div class="button-group">
-                    <button id="decline-btn" class="button-secondary">Decline</button>
-                    <button id="accept-btn" class="button-primary">Accept</button>
-                </div>
+        <div id="initial-screen" class="hidden">
+            <div class="w-24 h-24 rounded-full bg-blue-500 text-white flex items-center justify-center text-5xl mx-auto mb-6 shadow-lg">👋</div>
+            <h1 class="text-2xl font-bold mb-6">Ready to share?</h1>
+            <div class="space-y-4">
+                <button id="send-button" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-4 px-4 rounded-xl text-lg transition-transform transform active:scale-95">Send Files</button>
+                <button id="receive-button" class="w-full bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-4 px-4 rounded-xl text-lg transition-transform transform active:scale-95">Receive Files</button>
             </div>
         </div>
 
-        <div id="progress-modal" class="modal-overlay hidden">
-            <div class="modal-content">
-                <h2 id="progress-recipient-name">Sending to Indigo Fox</h2>
-                <div class="progress-bar-container">
-                    <div id="progress-bar" class="progress-bar"></div>
+        <div id="app-container" class="hidden">
+            <div id="user-info-container" class="mb-8">
+                <div class="flex items-center space-x-3">
+                    <div id="user-icon" class="w-24 h-24 rounded-full bg-blue-500 text-white flex items-center justify-center text-5xl mx-auto mb-4 shadow-lg flex-shrink-0"></div>
+                    <div>
+                        <h1 id="user-name" class="text-2xl font-bold"></h1>
+                        <p id="status-text" class="text-gray-500 dark:text-gray-400"></p>
+                    </div>
                 </div>
-                <span id="progress-text">0%</span>
-                <p id="transfer-status">Preparing to send...</p>
-                <button id="cancel-btn" class="button-secondary">Cancel</button>
+            </div>
+
+            <h2 id="peers-title" class="text-xl font-bold text-left mb-4">Nearby Devices</h2>
+            <div id="peers-container" class="grid grid-cols-3 sm:grid-cols-4 gap-4">
+                </div>
+            <p id="no-peers-message" class="text-center text-gray-500 dark:text-gray-400 mt-8 hidden">No other devices found. Ask them to open BrowserDrop and select "Receive".</p>
+        </div>
+    </div>
+
+
+    <input type="file" id="file-input" multiple class="hidden" />
+
+    <div id="modal-backdrop" class="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm hidden z-40"></div>
+
+    <div id="incoming-file-modal" class="fixed bottom-0 left-0 right-0 sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 w-full max-w-sm bg-white dark:bg-gray-800 rounded-t-2xl sm:rounded-2xl p-6 shadow-2xl transform translate-y-full sm:translate-y-0 sm:scale-95 opacity-0 transition-all duration-300 ease-in-out z-50 hidden">
+        <div class="text-center">
+            <div id="incoming-sender-icon" class="w-16 h-16 rounded-full bg-green-500 text-white flex items-center justify-center text-4xl mx-auto mb-4"></div>
+            <h2 class="text-lg font-semibold"><span id="incoming-sender-name" class="font-bold"></span> wants to send you files.</h2>
+            <div id="incoming-file-list" class="text-left bg-gray-100 dark:bg-gray-700 rounded-lg p-3 my-4 max-h-32 overflow-y-auto"></div>
+            <div class="flex gap-3 mt-6">
+                <button id="decline-button" class="flex-1 bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 font-semibold py-3 px-4 rounded-xl transition-transform transform active:scale-95">Decline</button>
+                <button id="accept-button" class="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-4 rounded-xl transition-transform transform active:scale-95">Accept</button>
             </div>
         </div>
     </div>
 
-    <script src="script.js"></script>
-</body>
-</html>
+    <div id="progress-modal" class="fixed bottom-0 left-0 right-0 sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 w-full max-w-sm bg-white dark:bg-gray-800 rounded-t-2xl sm:rounded-2xl p-6 shadow-2xl transform translate-y-full sm:translate-y-0 sm:scale-95 opacity-0 transition-all duration-300 ease-in-out z-50 hidden">
+        <div class="text-center">
+            <h2 id="progress-title" class="text-lg font-semibold mb-2">Sending files...</h2>
+            <p id="progress-file-name" class="text-sm text-gray-500 dark:text-gray-400 truncate"></p>
+            <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 my-4">
+                <div id="progress-bar" class="bg-blue-500 h-2.5 rounded-full" style="width: 0%"></div>
+            </div>
+            <div class="flex justify-between text-sm text-gray-500 dark:text-gray-400">
+                <span id="progress-percentage">0%</span>
+                <span id="progress-speed">0 MB/s</span>
+            </div>
+            <button id="cancel-button" class="w-full mt-6 bg-red-500 hover:bg-red-600 text-white font-semibold py-3 px-4 rounded-xl transition-transform transform active:scale-95">Cancel</button>
+        </div>
+    </div>
+
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // --- CONFIGURATION ---
+        const SIGNALING_SERVER_URL = 'wss://fly-global-relay.fly.dev/v2/lc';
+        const CHUNK_SIZE = 16384; // 16KB
+        const STUN_SERVERS = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+
+        // --- DOM ELEMENTS ---
+        const permissionsScreen = document.getElementById('permissions-screen');
+        const initialScreen = document.getElementById('initial-screen');
+        const appContainer = document.getElementById('app-container');
+        const permissionButton = document.getElementById('permission-button');
+        const sendButton = document.getElementById('send-button');
+        const receiveButton = document.getElementById('receive-button');
+        const userIconEl = document.getElementById('user-icon');
+        const userNameEl = document.getElementById('user-name');
+        const statusTextEl = document.getElementById('status-text');
+        const peersContainer = document.getElementById('peers-container');
+        const noPeersMessage = document.getElementById('no-peers-message');
+        const fileInput = document.getElementById('file-input');
+        
+        // Modals & Contents
+        const modalBackdrop = document.getElementById('modal-backdrop');
+        const incomingFileModal = document.getElementById('incoming-file-modal');
+        const progressModal = document.getElementById('progress-modal');
+        const incomingSenderIcon = document.getElementById('incoming-sender-icon');
+        const incomingSenderName = document.getElementById('incoming-sender-name');
+        const incomingFileList = document.getElementById('incoming-file-list');
+        const acceptButton = document.getElementById('accept-button');
+        const declineButton = document.getElementById('decline-button');
+        const progressTitle = document.getElementById('progress-title');
+        const progressFileName = document.getElementById('progress-file-name');
+        const progressBar = document.getElementById('progress-bar');
+        const progressPercentage = document.getElementById('progress-percentage');
+        const progressSpeed = document.getElementById('progress-speed');
+        const cancelButton = document.getElementById('cancel-button');
+
+        // --- STATE MANAGEMENT ---
+        let localId, localName, localIcon, ws = null;
+        let peerConnections = {};
+        let fileToSendPeerId = null;
+        let fileQueue = [];
+        let currentTransfer = { receiving: {}, sending: {} };
+
+        // --- UI HELPER FUNCTIONS ---
+        const showScreen = (screen) => {
+            permissionsScreen.classList.add('hidden');
+            initialScreen.classList.add('hidden');
+            appContainer.classList.add('hidden');
+            screen.classList.remove('hidden');
+        };
+
+        const showModal = (modal) => {
+            modalBackdrop.classList.remove('hidden');
+            modal.classList.remove('hidden');
+            setTimeout(() => modal.classList.remove('opacity-0', 'translate-y-full', 'sm:scale-95'), 10);
+        };
+
+        const hideModal = (modal) => {
+            modal.classList.add('opacity-0', 'translate-y-full', 'sm:scale-95');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                modalBackdrop.classList.add('hidden');
+            }, 300);
+        };
+
+        const updatePeersUI = () => {
+            const hasPeers = Object.keys(peerConnections).length > 0;
+            noPeersMessage.classList.toggle('hidden', hasPeers);
+            peersContainer.innerHTML = '';
+            for (const peerId in peerConnections) {
+                const peer = peerConnections[peerId];
+                if (peer.name) {
+                    const peerEl = document.createElement('div');
+                    peerEl.className = 'text-center cursor-pointer group';
+                    peerEl.innerHTML = `
+                        <div class="w-20 h-20 rounded-full bg-gray-300 dark:bg-gray-700 text-4xl flex items-center justify-center mx-auto mb-2 group-hover:scale-110 transition-transform peer-pulse">${peer.icon}</div>
+                        <p class="font-medium truncate">${peer.name}</p>`;
+                    peerEl.onclick = () => initiateFileTransfer(peerId);
+                    peersContainer.appendChild(peerEl);
+                }
+            }
+        };
+
+        // --- INITIALIZATION & PERMISSIONS ---
+        permissionButton.onclick = () => {
+            navigator.geolocation.getCurrentPosition(
+                () => showScreen(initialScreen), // Success
+                () => showScreen(initialScreen)  // Error - still proceed
+            );
+        };
+
+        sendButton.onclick = () => startApp('send');
+        receiveButton.onclick = () => startApp('receive');
+
+        const startApp = (mode) => {
+            showScreen(appContainer);
+            appContainer.classList.add(mode === 'send' ? 'mode-send' : 'mode-receive');
+            
+            if (mode === 'send') {
+                statusTextEl.textContent = 'Searching for devices...';
+                const userInfoContainer = document.getElementById('user-info-container');
+                const mainContainer = document.getElementById('app-wrapper');
+                // Adjust layout for send mode
+                userInfoContainer.classList.remove('mb-8');
+                const flexContainer = userInfoContainer.firstElementChild;
+                flexContainer.classList.remove('items-center', 'space-x-3');
+                flexContainer.innerHTML = `
+                    <div id="user-icon" class="w-10 h-10 rounded-full bg-blue-500 text-white flex items-center justify-center text-xl shadow-lg flex-shrink-0">${localIcon}</div>
+                    <div class="text-left">
+                        <h1 id="user-name" class="font-bold">${localName}</h1>
+                        <p id="status-text" class="text-sm text-gray-500 dark:text-gray-400">Sending files...</p>
+                    </div>`;
+            } else { // receive mode
+                 statusTextEl.textContent = 'Ready to receive files.';
+                 const userInfoContainer = document.getElementById('user-info-container');
+                 userInfoContainer.innerHTML = `
+                    <div id="user-icon" class="w-24 h-24 rounded-full bg-indigo-500 text-white flex items-center justify-center text-5xl mx-auto mb-4 shadow-lg">${localIcon}</div>
+                    <h1 id="user-name" class="text-2xl font-bold">${localName}</h1>
+                    <p id="status-text" class="text-gray-500 dark:text-gray-400">Ready to receive files. Keep this screen open.</p>`;
+            }
+
+            connectToSignalingServer();
+        };
+
+        const generateUniqueInfo = () => {
+            const adjectives = ["Agile", "Brave", "Clever", "Daring", "Eager", "Fancy", "Gentle", "Happy"];
+            const nouns = ["Badger", "Cat", "Dog", "Eagle", "Falcon", "Goat", "Horse", "Jaguar"];
+            const emojis = ["😀", "😎", "🚀", "🎉", "🌟", "💡", "💻", "📱", "💾", "🌐"];
+            
+            localName = `${adjectives[Math.floor(Math.random() * adjectives.length)]} ${nouns[Math.floor(Math.random() * nouns.length)]}`;
+            localIcon = emojis[Math.floor(Math.random() * emojis.length)];
+            localId = 'browserdrop-' + Math.random().toString(36).substring(2, 15);
+
+            userNameEl.textContent = localName;
+            userIconEl.textContent = localIcon;
+        };
+        
+        // Generate info once on load
+        generateUniqueInfo();
+
+        // --- SIGNALING & WEBRTC (CORE LOGIC, UNCHANGED) ---
+        const connectToSignalingServer = () => {
+            const roomName = 'browserdrop-room-global-v2';
+            ws = new WebSocket(`${SIGNALING_SERVER_URL}/${roomName}`);
+
+            ws.onopen = () => {
+                console.log('Connected to signaling server.');
+                ws.send(JSON.stringify({ type: 'announce', id: localId, name: localName, icon: localIcon }));
+            };
+
+            ws.onmessage = async (message) => {
+                const data = JSON.parse(message.data);
+                if (data.id === localId) return;
+
+                switch (data.type) {
+                    case 'announce':
+                        if (!peerConnections[data.id]) {
+                            createPeerConnection(data.id, data.name, data.icon);
+                            const pc = peerConnections[data.id].pc;
+                            const offer = await pc.createOffer();
+                            await pc.setLocalDescription(offer);
+                            ws.send(JSON.stringify({ type: 'offer', sdp: pc.localDescription, to: data.id, id: localId, name: localName, icon: localIcon }));
+                        }
+                        break;
+                    case 'offer':
+                        if (!peerConnections[data.id]) {
+                            createPeerConnection(data.id, data.name, data.icon);
+                        }
+                        const pcOffer = peerConnections[data.id].pc;
+                        await pcOffer.setRemoteDescription(new RTCSessionDescription(data.sdp));
+                        const answer = await pcOffer.createAnswer();
+                        await pcOffer.setLocalDescription(answer);
+                        ws.send(JSON.stringify({ type: 'answer', sdp: pcOffer.localDescription, to: data.id, id: localId }));
+                        break;
+                    case 'answer':
+                        const pcAnswer = peerConnections[data.id].pc;
+                        await pcAnswer.setRemoteDescription(new RTCSessionDescription(data.sdp));
+                        break;
+                    case 'candidate':
+                        const pcCandidate = peerConnections[data.id].pc;
+                        await pcCandidate.addIceCandidate(new RTCIceCandidate(data.candidate));
+                        break;
+                    case 'disconnect':
+                        if (peerConnections[data.id]) {
+                            peerConnections[data.id].pc.close();
+                            delete peerConnections[data.id];
+                            updatePeersUI();
+                        }
+                        break;
+                }
+            };
+            ws.onclose = () => setTimeout(connectToSignalingServer, 2000);
+            ws.onerror = (error) => { console.error('WebSocket error:', error); ws.close(); };
+        };
+
+        const createPeerConnection = (peerId, name, icon) => {
+            const pc = new RTCPeerConnection(STUN_SERVERS);
+            peerConnections[peerId] = { pc, name, icon, dataChannel: null };
+
+            pc.onicecandidate = (event) => {
+                if (event.candidate) {
+                    ws.send(JSON.stringify({ type: 'candidate', candidate: event.candidate, to: peerId, id: localId }));
+                }
+            };
+            pc.ondatachannel = (event) => {
+                peerConnections[peerId].dataChannel = event.channel;
+                setupDataChannelEvents(event.channel, peerId);
+            };
+            pc.onconnectionstatechange = () => {
+                if (['disconnected', 'failed', 'closed'].includes(pc.connectionState) && peerConnections[peerId]) {
+                    peerConnections[peerId].pc.close();
+                    delete peerConnections[peerId];
+                    updatePeersUI();
+                }
+            };
+            updatePeersUI();
+        };
+        
+        // --- FILE TRANSFER LOGIC (CORE LOGIC, UNCHANGED) ---
+        const initiateFileTransfer = (peerId) => {
+            fileToSendPeerId = peerId;
+            fileInput.click();
+        };
+
+        fileInput.onchange = (e) => {
+            if (!fileToSendPeerId) return;
+            const files = Array.from(e.target.files);
+            if (files.length === 0) return;
+            
+            fileQueue = files.map(file => ({ file, peerId: fileToSendPeerId }));
+            fileToSendPeerId = null;
+            e.target.value = '';
+            
+            processFileQueue();
+        };
+        
+        const processFileQueue = () => {
+            if (fileQueue.length === 0) return;
+            
+            const { file, peerId } = fileQueue[0];
+            const peer = peerConnections[peerId];
+           
