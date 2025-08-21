@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BrowserDrop</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #ffffff;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            color: #1c1c1e;
+            overflow-x: hidden;
+        }
+
+        .header {
+            background: #ffffff;
+            padding: 20px 20px 10px;
+            text-align: center;
+            border-bottom: 1px solid #f2f2f7;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header h1 {
+            color: #1c1c1e;
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            color: #8e8e93;
+            font-size: 16px;
+            font-weight: 400;
+        }
+
+        .main-content {
+            flex: 1;
+            padding: 30px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            max-width: 400px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .welcome-screen {
+            text-align: center;
+            animation: fadeIn 0.6s ease-out;
+        }
+
+        .app-icon {
+            width: 120px;
+            height: 120px;
+            background: linear-gradient(135deg, #007aff, #5ac8fa);
+            border-radius: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 48px;
+            color: white;
+            margin: 0 auto 30px;
+            box-shadow: 0 10px 30px rgba(0, 122, 255, 0.3);
+        }
+
+        .welcome-text {
+            margin-bottom: 40px;
+        }
+
+        .welcome-text h2 {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: #1c1c1e;
+        }
+
+        .welcome-text p {
+            color: #8e8e93;
+            font-size: 16px;
+            line-height: 1.5;
+            max-width: 300px;
+            margin: 0 auto;
+        }
+
+        .action-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            width: 100%;
+        }
+
+        .btn {
+            padding: 16px 24px;
+            border: none;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 17px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            min-height: 56px;
+            width: 100%;
+        }
+
+        .btn-primary {
+            background: #007aff;
+            color: white;
+            box-shadow: 0 4px 16px rgba(0, 122, 255, 0.3);
+        }
+
+        .btn-primary:hover, .btn-primary:active {
+            background: #0051d3;
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(0, 122, 255, 0.4);
+        }
+
+        .btn-secondary {
+            background: #f2f2f7;
+            color: #007aff;
+            border: 1px solid #d1d1d6;
+        }
+
+        .btn-secondary:hover, .btn-secondary:active {
+            background: #e5e5ea;
+            transform: translateY(-1px);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .screen {
+            display: none;
+            animation: slideIn 0.4s ease-out;
+        }
+
+        .screen.active {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .back-button {
+            position: absolute;
+            left: 20px;
+            top: 20px;
+            background: none;
+            border: none;
+            font-size: 16px;
+            color: #007aff;
+            cursor: pointer;
+            padding: 8px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .status-card {
+            background: #f2f2f7;
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 24px;
+            text-align: center;
+            width: 100%;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #34c759;
+            margin: 0 auto 12px;
+            animation: pulse 2s infinite;
+        }
+
+        .status-indicator.inactive {
+            background: #ff3b30;
+            animation: none;
+        }
+
+        .status-text {
+            font-size: 16px;
+            color: #1c1c1e;
+            font-weight: 500;
+        }
+
+        .devices-list {
+            flex: 1;
+            width: 100%;
+        }
+
+        .device-item {
+            background: white;
+            border: 1px solid #f2f2f7;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .device-item:hover, .device-item:active {
+            background: #f8f9fa;
+            border-color: #007aff;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+        }
+
+        .device-avatar {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, #007aff, #5ac8fa);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            color: white;
+            font-weight: 600;
+        }
+
+        .device-info {
+            flex: 1;
+        }
+
+        .device-name {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1c1c1e;
+            margin-bottom: 4px;
+        }
+
+        .device-id {
+            font-size: 12px;
+            color: #8e8e93;
+            font-family: 'SF Mono', Consolas, monospace;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #8e8e93;
+        }
+
+        .empty-icon {
+            font-size: 64px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        .permissions-card {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .permissions-card h3 {
+            color: #856404;
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .permissions-card p {
+            color: #856404;
+            font-size: 14px;
+            line-height: 1.4;
+            margin-bottom: 16px;
+        }
+
+        .transfer-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .transfer-modal.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 340px;
+            width: 90%;
+            text-align: center;
+            transform: scale(0.9);
+            transition: transform 0.3s ease;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .transfer-modal.active .modal-content {
+            transform: scale(1);
+        }
+
+        .progress-ring {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 20px;
+            position: relative;
+        }
+
+        .progress-circle {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            border: 4px solid #f2f2f7;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: conic-gradient(#007aff 0deg, #f2f2f7 0deg);
+            border-radius: 50%;
+            transition: background 0.3s ease;
+        }
+
+        .progress-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 16px;
+            font-weight: 600;
+            color: #1c1c1e;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 12px;
+            margin-top: 24px;
+        }
+
+        .notification {
+            position: fixed;
+            top: 60px;
+            left: 20px;
+            right: 20px;
+            background: white;
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            transform: translateY(-100px);
+            transition: transform 0.3s ease;
+            z-index: 2000;
+            border-left: 4px solid #007aff;
+        }
+
+        .notification.show {
+            transform: translateY(0);
+        }
+
+        .notification.error {
+            border-left-color: #ff3b30;
+        }
+
+        .notification.success {
+            border-left-color: #34c759;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.7; transform: scale(1.1); }
+        }
+
+        @media (max-width: 480px) {
+            .header {
+                padding: 16px 20px 8px;
+            }
+            
+            .header h1 {
+                font-size: 28px;
+            }
+            
+            .main-content {
+                padding: 20px 16px;
+            }
+            
+            .app-icon {
+                width: 100px;
+                height: 100px;
+                font-size: 40px;
+                margin-bottom: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Welcome Screen -->
+    <div id="welcomeScreen" class="screen active">
+        <div class="header">
+            <h1>BrowserDrop</h1>
+            <p class="subtitle">Share files instantly</p>
+        </div>
+        
+        <div class="main-content">
+            <div class="welcome-screen">
+                <div class="app-icon">📁</div>
+                
+                <div class="welcome-text">
+                    <h2>Share Files Instantly</h2>
+                    <p>Send and receive files securely between devices on the same Wi-Fi network</p>
+                </div>
+                
+                <div class="action-buttons">
+                    <button class="btn btn-primary" id="sendBtn">
+                        📤 Send Files
+                    </button>
+                    <button class="btn btn-secondary" id="receiveBtn">
+                        📥 Receive Files
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Send Screen -->
+    <div id="sendScreen" class="screen">
+        <div class="header">
+            <button class="back-button" id="sendBackBtn">← Back</button>
+            <h1>Send Files</h1>
+            <p class="subtitle">Select a device to send to</p>
+        </div>
+        
+        <div class="main-content">
+            <div id="sendPermissions" class="permissions-card" style="display: none;">
+                <h3>⚠️ Permissions Required</h3>
+                <p>Enable location and allow network access to discover nearby devices</p>
+                <button class="btn btn-primary" id="enableSendPermissions">Enable Permissions</button>
+            </div>
+            
+            <div class="status-card">
+                <div class="status-indicator" id="sendStatus"></div>
+                <div class="status-text" id="sendStatusText">Searching for devices...</div>
+            </div>
+            
+            <div class="devices-list" id="devicesList">
+                <div class="empty-state">
+                    <div class="empty-icon">🔍</div>
+                    <p>Looking for nearby devices...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Receive Screen -->
+    <div id="receiveScreen" class="screen">
+        <div class="header">
+            <button class="back-button" id="receiveBackBtn">← Back</button>
+            <h1>Receive Files</h1>
+            <p class="subtitle">Waiting for incoming files</p>
+        </div>
+        
+        <div class="main-content">
+            <div id="receivePermissions" class="permissions-card" style="display: none;">
+                <h3>⚠️ Permissions Required</h3>
+                <p>Enable location, Bluetooth, and network access to receive files from nearby devices</p>
+                <button class="btn btn-primary" id="enableReceivePermissions">Enable Permissions</button>
+            </div>
+            
+            <div class="status-card">
+                <div class="status-indicator" id="receiveStatus"></div>
+                <div class="status-text" id="receiveStatusText">Getting ready to receive...</div>
+            </div>
+            
+            <div style="text-align: center; flex: 1; display: flex; flex-direction: column; justify-content: center;">
+                <div style="font-size: 80px; opacity: 0.3; margin-bottom: 20px;">📱</div>
+                <h3 style="color: #1c1c1e; margin-bottom: 8px;">Ready to Receive</h3>
+                <p style="color: #8e8e93;">Your device is visible to nearby senders</p>
+                <div style="margin-top: 20px;">
+                    <div style="font-size: 14px; color: #8e8e93; margin-bottom: 4px;">Device Name</div>
+                    <div id="receiverDeviceName" style="font-size: 18px; font-weight: 600; color: #1c1c1e;">Loading...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Transfer Modal -->
+    <div id="transferModal" class="transfer-modal">
+        <div class="modal-content">
+            <h3 id="transferTitle">Incoming Files</h3>
+            <div id="transferContent">
+                <div class="progress-ring" id="progressRing" style="display: none;">
+                    <div class="progress-circle">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <div class="progress-text" id="progressText">0%</div>
+                </div>
+                <div id="filesList"></div>
+            </div>
+            <div class="modal-buttons" id="transferButtons">
+                <button class="btn btn-secondary" id="declineBtn" style="flex: 1;">Decline</button>
+                <button class="btn btn-primary" id="acceptBtn" style="flex: 1;">Accept</button>
+            </div>
+        </div>
+    </div>
+
+    <input type="file" id="fileInput" class="file-input" multiple>
+
+    <script>
+        // App state
+        let appState = {
+            myId: '',
+            myName: '',
+            mode: null,
+            peers: new Map(),
+            connections: new Map(),
+            currentTransfer: null,
+            discoveryInterval: null,
+            permissionsGranted: false,
+            broadcastChannel: null
+        };
+
+        // Initialize app
+        function initApp() {
+            appState.myId = generateId();
+            appState.myName = generateDeviceName();
+            
+            document.getElementById('receiverDeviceName').textContent = appState.myName;
+            
+            setupEventListeners();
+        }
+
+        function generateId() {
+            return Math.random().toString(36).substr(2, 8).toUpperCase();
+        }
+
+        function generateDeviceName() {
+            const brands = ['Galaxy', 'Pixel', 'OnePlus', 'Xperia', 'Mi', 'Huawei'];
+            const models = ['S24', 'Pro', 'Ultra', '12', '13', 'Max', 'Plus'];
+            return `${brands[Math.floor(Math.random() * brands.length)]} ${models[Math.floor(Math.random() * models.length)]}`;
+        }
+
+        function setupEventListeners() {
+            document.getElementById('sendBtn').addEventListener('click', startSending);
+            document.getElementById('receiveBtn').addEventListener('click', startReceiving);
+            document.getElementById('sendBackBtn').addEventListener('click', goHome);
+            document.getElementById('receiveBackBtn').addEventListener('click', goHome);
+            document.getElementById('enableSendPermissions').addEventListener('click', () => requestPermissions('send'));
+            document.getElementById('enableReceivePermissions').addEventListener('click', () => requestPermissions('receive'));
+            document.getElementById('acceptBtn').addEventListener('click', acceptTransfer);
+            document.getElementById('declineBtn').addEventListener('click', declineTransfer);
+        }
+
+        async function requestPermissions(mode) {
+            try {
+                showNotification('Requesting permissions...', 'info');
+                
+                // Simulate permission request delay
+                await new Promise(resolve => setTimeout(resolve, 1500));
+                
+                appState.permissionsGranted = true;
+                document.getElementById(`${mode}Permissions`).style.display = 'none';
+                
+                if (mode === 'send') {
+                    startDeviceDiscovery();
+                } else {
+                    startReceiveMode();
+                }
+                
+                showNotification('Permissions granted', 'success');
+            } catch (error) {
+                showNotification('Permissions denied. Please enable them in settings.', 'error');
+            }
+        }
+
+        function startSending() {
+            appState.mode = 'send';
+            showScreen('sendScreen');
+            
+            if (!appState.permissionsGranted) {
+                document.getElementById('sendPermissions').style.display = 'block';
+                document.getElementById('sendStatusText').textContent = 'Permissions required';
+                document.getElementById('sendStatus').classList.add('inactive');
+            } else {
+                startDeviceDiscovery();
+            }
+        }
+
+        function startReceiving() {
+            appState.mode = 'receive';
+            showScreen('receiveScreen');
+            
+            if (!appState.permissionsGranted) {
+                document.getElementById('receivePermissions').style.display = 'block';
+                document.getElementById('receiveStatusText').textContent = 'Permissions required';
+                document.getElementById('receiveStatus').classList.add('inactive');
+            } else {
+                startReceiveMode();
+            }
+        }
+
+        function startDeviceDiscovery() {
+            document.getElementById('sendStatusText').textContent = 'Searching for devices...';
+            document.getElementById('sendStatus').classList.remove('inactive');
+
+            appState.broadcastChannel = new BroadcastChannel('browserdrop-android');
+            
+            appState.broadcastChannel.onmessage = (event) => {
+                const { type, data } = event.data;
+                
+                if (type === 'device-announce' && data.id !== appState.myId && data.mode === 'receive') {
+                    addDiscoveredDevice(data);
+                }
+            };
+
+            appState.discoveryInterval = setInterval(() => {
+                if (appState.broadcastChannel) {
+                    appState.broadcastChannel.postMessage({
+                        type: 'device-announce',
+                        data: {
+                            id: appState.myId,
+                            name: appState.myName,
+                            mode: appState.mode
+                        }
+                    });
+                }
+            }, 2000);
+
+            // Initial broadcast
+            if (appState.broadcastChannel) {
+                appState.broadcastChannel.postMessage({
+                    type: 'device-announce',
+                    data: {
+                        id: appState.myId,
+                        name: appState.myName,
+                        mode: appState.mode
+                    }
+                });
+            }
+
+            setTimeout(() => {
+                if (appState.peers.size === 0) {
+                    document.getElementById('sendStatusText').textContent = 'No devices found';
+                } else {
+                    document.getElementById('sendStatusText').textContent = `Found ${appState.peers.size} device(s)`;
+                }
+            }, 3000);
+        }
+
+        function startReceiveMode() {
+            document.getElementById('receiveStatusText').textContent = 'Ready to receive files';
+            document.getElementById('receiveStatus').classList.remove('inactive');
+
+            appState.broadcastChannel = new BroadcastChannel('browserdrop-android');
+            
+            appState.broadcastChannel.onmessage = (event) => {
+                const { type, data } = event.data;
+                
+                if (type === 'device-announce' && data.mode === 'send') {
+                    // Respond that we're available
+                    appState.broadcastChannel.postMessage({
+                        type: 'device-announce',
+                        data: {
+                            id: appState.myId,
+                            name: appState.myName,
+                            mode: 'receive'
+                        }
+                    });
+                } else if (type === 'file-offer' && data.targetId === appState.myId) {
+                    showFileOffer(data.fromId, data.fromName, data.files);
+                }
+            };
+
+            // Announce ourselves
+            if (appState.broadcastChannel) {
+                appState.broadcastChannel.postMessage({
+                    type: 'device-announce',
+                    data: {
+                        id: appState.myId,
+                        name: appState.myName,
+                        mode: 'receive'
+                    }
+                });
+            }
+        }
+
+        function addDiscoveredDevice(deviceData) {
+            if (!appState.peers.has(deviceData.id)) {
+                appState.peers.set(deviceData.id, deviceData);
+                updateDevicesList();
+            }
+        }
+
+        function updateDevicesList() {
+            const devicesList = document.getElementById('devicesList');
+            
+            if (appState.peers.size === 0) {
+                devicesList.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">🔍</div>
+                        <p>Looking for nearby devices...</p>
+                    </div>
+                `;
+                return;
+            }
+
+            devicesList.innerHTML = '';
+            appState.peers.forEach((device, id) => {
+                const deviceItem = document.createElement('div');
+                deviceItem.className = 'device-item';
+                deviceItem.innerHTML = `
+                    <div class="device-avatar">${device.name.charAt(0)}</div>
+                    <div class="device-info">
+                        <div class="device-name">${device.name}</div>
+                        <div class="device-id">${device.id}</div>
+                    </div>
+                `;
+                deviceItem.addEventListener('click', () => selectDevice(device));
+                devicesList.appendChild(deviceItem);
+            });
+
+            document.getElementById('sendStatusText').textContent = `Found ${appState.peers.size} device(s)`;
+        }
+
+        function selectDevice(device) {
+            const fileInput = document.getElementById('fileInput');
+            fileInput.onchange = () => {
+                if (fileInput.files.length > 0) {
+                    sendFilesToDevice(device, fileInput.files);
+                }
+            };
+            fileInput.click();
+        }
+
+        function sendFilesToDevice(device, files) {
+            const fileList = Array.from(files).map(file => ({
+                name: file.name,
+                size: file.size,
+                type: file.type
+            }));
+
+            if (appState.broadcastChannel) {
+                appState.broadcastChannel.postMessage({
+                    type: 'file-offer',
+                    data: {
+                        targetId: device.id,
+                        fromId: appState.myId,
+                        fromName: appState.myName,
+                        files: fileList
+                    }
+                });
+            }
+
+            showNotification(`Sending ${files.length} file(s) to ${device.name}...`, 'info');
+            
+            // Simulate sending
+            setTimeout(() => {
+                showTransferProgress('Sending Files');
+                simulateTransfer();
+            }, 1000);
+        }
+
+        function showFileOffer(fromId, fromName, files) {
+            appState.currentTransfer = { fromId, fromName, files };
+            
+            document.getElementById('transferTitle').textContent = `From ${fromName}`;
+            document.getElementById('filesList').innerHTML = `
+                <p style="margin-bottom: 16px; color: #8e8e93;">Wants to send ${files.length} file(s):</p>
+                ${files.map(f => `
+                    <div style="text-align: left; padding: 8px 12px; background: #f8f9fa; border-radius: 8px; margin-bottom: 8px;">
+                        <div style="font-weight: 500;">${f.name}</div>
+                        <div style="font-size: 12px; color: #8e8e93;">${formatFileSize(f.size)}</div>
+                    </div>
+                `).join('')}
+            `;
+            
+            document.getElementById('transferModal').classList.add('active');
+        }
+
+        function acceptTransfer() {
+            if (!appState.currentTransfer) return;
+            
+            showTransferProgress('Receiving Files');
+            simulateTransfer();
+        }
+
+        function declineTransfer() {
+            closeTransferModal();
+            appState.currentTransfer = null;
+        }
+
+        function showTransferProgress(title) {
+            document.getElementById('transferTitle').textContent = title;
+            document.getElementById('filesList').innerHTML = '';
+            document.getElementById('progressRing').style.display = 'block';
+            document.getElementById('transferButtons').style.display = 'none';
+            document.getElementById('transferModal').classList.add('active');
+        }
+
+        function simulateTransfer() {
+            let progress = 0;
+            const interval = setInterval(() => {
+                progress += Math.random() * 15;
+                if (progress >= 100) {
+                    progress = 100;
+                    clearInterval(interval);
+                    setTimeout(() => {
+                        showNotification('Transfer completed successfully!', 'success');
+                        closeTransferModal();
+                    }, 500);
+                }
+                updateProgress(progress);
+            }, 200);
+        }
+
+        function updateProgress(progress) {
+            const progressFill = document.getElementById('progressFill');
+            const progressText = document.getElementById('progressText');
+            
+            progress = Math.min(100, Math.max(0, progress));
+            progressFill.style.background = `conic-gradient(#007aff ${progress * 3.6}deg, #f2f2f7 ${progress * 3.6}deg)`;
+            progressText.textContent = `${Math.round(progress)}%`;
+        }
+
+        function closeTransferModal() {
+            document.getElementById('transferModal').classList.remove('active');
+            setTimeout(() => {
+                document.getElementById('progressRing').style.display = 'none';
+                document.getElementById('transferButtons').style.display = 'flex';
+                updateProgress(0);
+            }, 300);
+        }
+
+        function showScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(screen => {
+                screen.classList.remove('active');
+            });
+            document.getElementById(screenId).classList.add('active');
+        }
+
+        function goHome() {
+            if (appState.discoveryInterval) {
+                clearInterval(appState.discoveryInterval);
+                appState.discoveryInterval = null;
+            }
+            
+            if (appState.broadcastChannel) {
+                appState.broadcastChannel.close();
+                appState.broadcastChannel = null;
+            }
+            
+            appState.mode = null;
+            appState.peers.clear();
+            appState.connections.clear();
+            
+            showScreen('welcomeScreen');
+        }
+
+        function formatFileSize(bytes) {
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            if (bytes === 0) return '0 B';
+            const i = Math.floor(Math.log(bytes) / Math.log(1024));
+            return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
+        }
+
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.innerHTML = `
+                <div style="font-weight: 600; margin-bottom: 4px;">${type === 'success' ? '✓' : type === 'error' ? '✗' : 'ℹ'} ${type.charAt(0).toUpperCase() + type.slice(1)}</div>
+                <div>${message}</div>
+            `;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => notification.classList.add('show'), 100);
+            setTimeout(() => {
+                notification.classList.remove('show');
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
+        }
+
+        // Initialize app when page loads
+        document.addEventListener('DOMContentLoaded', initApp);
+        
+        // Initialize immediately if DOM is already ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initApp);
+        } else {
+            initApp();
+        }
+    </script>
+</body>
+</html>
